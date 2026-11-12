@@ -1,7 +1,7 @@
 # Read nightly by leftbrain847/index. /new-project fills this in; edit any time.
 theme: ""             # one of the index's config.themes
-tags: [spanish, radio, web_app]  # from the index's config.tags; new tags lowercase_with_underscores
-what: "Live Spanish-language radio by country, with an accent roulette, for ear training"
-next: "Host it (Pages) so streams play outside the artifact sandbox; then decide on live captions + translation"
+tags: [radio, web_app]  # from the index's config.tags; new tags lowercase_with_underscores
+what: "Live radio from every country, with a guess-the-country roulette"
+next: "Measure how many stations allow CORS, then test in-browser captions + translation on iPhone"
 active: true          # true pulls this repo's tasks into J's queue
 public: false         # informational; each sprint day's snapshot decides publishing

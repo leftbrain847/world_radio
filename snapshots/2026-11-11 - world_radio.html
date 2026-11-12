@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,7 +17,9 @@ nav button{flex:1}
 button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:9px 10px;cursor:pointer}
 button[aria-pressed=true],button.on{border-color:var(--acc);color:var(--acc)}
 button:disabled{opacity:.45}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+#search{width:100%;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;margin-bottom:6px}
+.hint{color:var(--dim);font-size:12px;margin:0 2px 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;max-height:220px;overflow:auto}
 .chips button{padding:6px 10px;font-size:13px}
 .list{display:flex;flex-direction:column;gap:6px}
 .st{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
@@ -29,7 +31,7 @@ button:disabled{opacity:.45}
 .msg{color:var(--dim);padding:14px 4px;text-align:center}
 .msg.err{color:var(--bad)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
-.big{font-size:28px;font-weight:700;text-align:center;margin:6px 0}
+.big{font-size:24px;font-weight:700;text-align:center;margin:6px 0}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .grid button.right{border-color:var(--ok);color:var(--ok)}
 .grid button.wrong{border-color:var(--bad);color:var(--bad)}
@@ -52,23 +54,25 @@ button:disabled{opacity:.45}
 </head>
 <body>
 <h1>world<b>_</b>radio</h1>
-<p class="sub">Radio en vivo en español — elige un país y escucha cómo se habla allí.</p>
+<p class="sub">Live radio from every country on Earth. Pick a place and listen.</p>
 <nav>
-  <button id="tabListen" aria-pressed="true">Escuchar</button>
-  <button id="tabRoulette" aria-pressed="false">Ruleta de acentos</button>
-  <button id="tabFavs" aria-pressed="false">Favoritas</button>
+  <button id="tabListen" aria-pressed="true">Listen</button>
+  <button id="tabRoulette" aria-pressed="false">Roulette</button>
+  <button id="tabFavs" aria-pressed="false">Favorites</button>
 </nav>
 <section id="viewListen">
+  <input id="search" type="search" placeholder="Search any country…" autocomplete="off" aria-label="Search countries">
+  <p class="hint" id="countryHint"></p>
   <div class="chips" id="countries"></div>
-  <div class="list" id="stations"><p class="msg">Elige un país.</p></div>
+  <div class="list" id="stations"><p class="msg">Pick a country.</p></div>
 </section>
 <section id="viewRoulette" class="hide">
   <div class="panel">
-    <div class="row"><span>Racha <b id="streak">0</b></span><span>Mejor <b id="best">0</b></span></div>
-    <div class="big" id="rqTitle">¿De dónde es esta radio?</div>
-    <p class="msg" id="rqMsg">Toca «Girar» para escuchar una emisora al azar.</p>
+    <div class="row"><span>Streak <b id="streak">0</b></span><span>Best <b id="best">0</b></span></div>
+    <div class="big" id="rqTitle">Where is this station?</div>
+    <p class="msg" id="rqMsg">Tap Spin to hear a random station from somewhere in the world.</p>
     <div class="grid" id="choices"></div>
-    <div class="grid actions"><button id="spin">Girar</button><button id="reveal" disabled>Revelar</button></div>
+    <div class="grid actions"><button id="spin">Spin</button><button id="reveal" disabled>Reveal</button></div>
   </div>
 </section>
 <section id="viewFavs" class="hide">
@@ -89,36 +93,24 @@ button:disabled{opacity:.45}
 const CONFIG = {
   // Radio Browser mirrors, tried in order. Its docs ask apps to use a named server, not the bare domain.
   servers: ['https://de1.api.radio-browser.info', 'https://nl1.api.radio-browser.info', 'https://at1.api.radio-browser.info'],
-  language: 'spanish',
   stationsPerCountry: 60,
+  minStationsPerCountry: 1,     // countries with fewer https stations are hidden from the picker
+  rouletteMinStations: 20,      // roulette only draws from countries with at least this many stations
+  rouletteCountriesPerSpin: 4,  // countries loaded per spin (answer is one of them)
   rouletteTopN: 25,
   rouletteChoices: 4,
   requestTimeoutMs: 8000,
+  featured: ['US', 'GB', 'FR', 'DE', 'BR', 'JP', 'IN', 'NG', 'MX', 'AU'],
   storageKeys: { favorites: 'world_radio.favorites', streak: 'world_radio.streak', best: 'world_radio.best' },
-  countries: [
-    { code: 'MX', name: 'México', speech: 'es-MX' },
-    { code: 'PE', name: 'Perú', speech: 'es-PE' },
-    { code: 'EC', name: 'Ecuador', speech: 'es-EC' },
-    { code: 'CO', name: 'Colombia', speech: 'es-CO' },
-    { code: 'AR', name: 'Argentina', speech: 'es-AR' },
-    { code: 'CL', name: 'Chile', speech: 'es-CL' },
-    { code: 'ES', name: 'España', speech: 'es-ES' },
-    { code: 'CU', name: 'Cuba', speech: 'es-CU' },
-    { code: 'VE', name: 'Venezuela', speech: 'es-VE' },
-    { code: 'GT', name: 'Guatemala', speech: 'es-GT' },
-    { code: 'DO', name: 'Rep. Dominicana', speech: 'es-DO' },
-    { code: 'PR', name: 'Puerto Rico', speech: 'es-PR' },
-  ],
 };
 
-function countryByCode(code, cfg = CONFIG) {
-  return cfg.countries.find((c) => c.code === code) ?? null;
+function countriesUrl(server) {
+  return `${server}/json/countries?hidebroken=true&order=name`;
 }
 
 function searchUrl(server, countryCode, cfg = CONFIG) {
   const q = new URLSearchParams({
     countrycode: countryCode,
-    language: cfg.language,
     hidebroken: 'true',
     is_https: 'true',
     order: 'votes',
@@ -142,7 +134,47 @@ function isHttpsUrl(u) {
   }
 }
 
-// Raw API rows -> playable stations: https streams only, no duplicates, best-voted first.
+// Emoji flag from an ISO 3166-1 alpha-2 code (two regional-indicator letters).
+function flag(code) {
+  if (!/^[A-Z]{2}$/.test(code ?? '')) return '';
+  return String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+}
+
+// Short English country name from the code (the directory's names are long official ones); falls back to its name.
+let regionNames = null;
+function displayName(code, fallback) {
+  try {
+    regionNames ??= new Intl.DisplayNames(['en'], { type: 'region' });
+    const n = regionNames.of(code);
+    if (n && n !== code) return n;
+  } catch { /* old browser: use the directory's name */ }
+  return fallback || code;
+}
+
+// Raw /json/countries rows -> [{code, name, count}] with valid codes, merged, sorted by name.
+function normalizeCountries(rows, cfg = CONFIG) {
+  const by = new Map();
+  for (const r of Array.isArray(rows) ? rows : []) {
+    const code = String(r?.iso_3166_1 ?? '').toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code)) continue;
+    const count = Number.isFinite(+r.stationcount) ? +r.stationcount : 0;
+    const prev = by.get(code);
+    by.set(code, { code, name: prev?.name || displayName(code, clean(r.name, 60)), count: (prev?.count ?? 0) + count });
+  }
+  return [...by.values()].filter((c) => c.count >= cfg.minStationsPerCountry).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function nameOf(code, countries) {
+  return countries.find((c) => c.code === code)?.name ?? code;
+}
+
+function filterCountries(countries, query) {
+  const q = clean(query, 40).toLowerCase();
+  if (!q) return countries;
+  return countries.filter((c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase() === q);
+}
+
+// Raw station rows -> playable stations: https streams only, no duplicates, best-voted first.
 function normalizeStations(rows, countryCode, cfg = CONFIG) {
   const seen = new Set();
   const out = [];
@@ -151,22 +183,20 @@ function normalizeStations(rows, countryCode, cfg = CONFIG) {
     if (!isHttpsUrl(stream)) continue;
     const name = clean(r.name);
     if (!name || !r.stationuuid) continue;
-    const key = `${name.toLowerCase()}|${stream}`;
-    const nameKey = name.toLowerCase();
-    if (seen.has(key) || seen.has(nameKey)) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key) || seen.has(stream)) continue;
     seen.add(key);
-    seen.add(nameKey);
+    seen.add(stream);
     out.push({
       id: String(r.stationuuid),
       name,
       stream,
       country: countryCode,
       city: clean(r.state, 40),
+      language: clean(r.language, 40).split(',')[0].trim(),
       tags: clean(r.tags, 120).split(',').map((t) => t.trim()).filter(Boolean).slice(0, 3),
-      codec: clean(r.codec, 12),
       bitrate: Number.isFinite(+r.bitrate) ? +r.bitrate : 0,
       votes: Number.isFinite(+r.votes) ? +r.votes : 0,
-      homepage: isHttpsUrl(r.homepage) ? r.homepage : '',
     });
   }
   out.sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name));
@@ -193,14 +223,19 @@ function shuffle(arr, rand) {
   return a;
 }
 
-// One accent-roulette round: a hidden station plus country choices that include the answer.
-function makeRound(stationsByCountry, rand, cfg = CONFIG) {
+// Countries big enough to make a fair roulette draw.
+function roulettePool(countries, cfg = CONFIG) {
+  return countries.filter((c) => c.count >= cfg.rouletteMinStations).map((c) => c.code);
+}
+
+// One roulette round: a hidden station plus country choices (from allCodes) that include the answer.
+function makeRound(stationsByCountry, allCodes, rand, cfg = CONFIG) {
   const pool = Object.entries(stationsByCountry).filter(([, list]) => list.length);
   if (!pool.length) return null;
   const [answer, list] = pool[Math.floor(rand() * pool.length)];
   const top = list.slice(0, cfg.rouletteTopN);
   const station = top[Math.floor(rand() * top.length)];
-  const others = shuffle(cfg.countries.map((c) => c.code).filter((c) => c !== answer), rand).slice(0, cfg.rouletteChoices - 1);
+  const others = shuffle([...new Set(allCodes)].filter((c) => c !== answer), rand).slice(0, cfg.rouletteChoices - 1);
   return { station, answer, choices: shuffle([answer, ...others], rand) };
 }
 
@@ -234,7 +269,9 @@ function toggleFavorite(favs, station) {
   const K = CONFIG.storageKeys;
 
   const state = {
+    countries: [],          // [{code, name, count}] from the directory
     country: null,
+    query: '',
     cache: {},              // countryCode -> stations
     server: null,           // the mirror that answered last
     current: null,          // station playing
@@ -245,6 +282,7 @@ function toggleFavorite(favs, station) {
     rand: rng(Date.now() & 0xffffffff),
   };
   const audio = $('audio');
+  const label = (code) => `${flag(code)} ${nameOf(code, state.countries)}`.trim();
 
   // ---------- data ----------
   async function getJson(url) {
@@ -257,18 +295,23 @@ function toggleFavorite(favs, station) {
     } finally { clearTimeout(t); }
   }
 
-  async function loadCountry(code) {
-    if (state.cache[code]) return state.cache[code];
+  async function fromAnyServer(makeUrl) {
     const servers = state.server ? [state.server, ...CONFIG.servers.filter((s) => s !== state.server)] : CONFIG.servers;
     let lastErr;
     for (const server of servers) {
       try {
-        const rows = await getJson(searchUrl(server, code));
+        const data = await getJson(makeUrl(server));
         state.server = server;
-        return (state.cache[code] = normalizeStations(rows, code));
+        return data;
       } catch (e) { lastErr = e; }
     }
-    throw lastErr ?? new Error('sin conexión');
+    throw lastErr ?? new Error('offline');
+  }
+
+  async function loadCountry(code) {
+    if (state.cache[code]) return state.cache[code];
+    const rows = await fromAnyServer((s) => searchUrl(s, code));
+    return (state.cache[code] = normalizeStations(rows, code));
   }
 
   // ---------- views ----------
@@ -282,43 +325,65 @@ function toggleFavorite(favs, station) {
   }
   for (const t of Object.keys(tabs)) $(`tab${t}`).addEventListener('click', () => show(t));
 
+  function countryButton(c) {
+    return el('button', {
+      text: `${flag(c.code)} ${c.name}`.trim(), 'aria-pressed': String(state.country === c.code), 'data-code': c.code,
+      on: { click: () => pickCountry(c.code) },
+    });
+  }
+
   function renderCountries() {
     const box = $('countries');
-    box.replaceChildren(...CONFIG.countries.map((c) => el('button', {
-      text: c.name, 'aria-pressed': String(state.country === c.code), 'data-code': c.code,
-      on: { click: () => pickCountry(c.code) },
-    })));
+    if (!state.countries.length) return;
+    const list = state.query
+      ? filterCountries(state.countries, state.query)
+      : CONFIG.featured.map((code) => state.countries.find((c) => c.code === code)).filter(Boolean);
+    if (!list.length) return box.replaceChildren(el('p', { class: 'msg', text: 'No country matches that.' }));
+    box.replaceChildren(...list.map(countryButton));
+    $('countryHint').textContent = state.query ? `${list.length} match` + (list.length === 1 ? '' : 'es') : `${state.countries.length} countries · type to find any`;
   }
+
+  async function loadCountries() {
+    $('countryHint').textContent = 'Loading countries…';
+    try {
+      state.countries = normalizeCountries(await fromAnyServer(countriesUrl));
+      renderCountries();
+    } catch {
+      $('countryHint').textContent = "Couldn't reach the radio directory. Check your connection and reload.";
+    }
+  }
+
+  $('search').addEventListener('input', (e) => { state.query = e.target.value; renderCountries(); });
 
   async function pickCountry(code) {
     state.country = code;
     renderCountries();
     const list = $('stations');
-    list.replaceChildren(el('p', { class: 'msg', text: 'Buscando emisoras…' }));
+    list.replaceChildren(el('p', { class: 'msg', text: 'Finding stations…' }));
     try {
       const stations = await loadCountry(code);
       if (state.country !== code) return;
-      if (!stations.length) return list.replaceChildren(el('p', { class: 'msg', text: 'No hay emisoras https para este país ahora mismo.' }));
-      list.replaceChildren(el('p', { class: 'msg', text: `${stations.length} emisoras https · las más votadas primero` }), ...stations.map(stationRow));
+      if (!stations.length) return list.replaceChildren(el('p', { class: 'msg', text: 'No https stations for this country right now.' }));
+      list.replaceChildren(el('p', { class: 'msg', text: `${label(code)} · ${stations.length} https stations, most-voted first` }), ...stations.map(stationRow));
     } catch {
-      list.replaceChildren(el('p', { class: 'msg err', text: 'No se pudo cargar el directorio de radios. Revisa tu conexión e inténtalo otra vez.' }));
+      list.replaceChildren(el('p', { class: 'msg err', text: "Couldn't load stations. Check your connection and try again." }));
     }
   }
 
   function stationRow(s) {
     const isFav = state.favs.some((f) => f.id === s.id);
-    const info = [s.city, s.tags.join(' · '), s.bitrate ? `${s.bitrate} kbps` : ''].filter(Boolean).join(' — ');
+    const info = [s.city, s.language, (s.tags ?? []).join(' · '), s.bitrate ? `${s.bitrate} kbps` : ''].filter(Boolean).join(' — ');
     return el('div', { class: `st${state.current?.id === s.id ? ' playing' : ''}`, 'data-id': s.id }, [
-      el('div', { class: 'meta' }, [el('div', { class: 'nm', text: s.name }), el('div', { class: 'tg', text: info || (countryByCode(s.country)?.name ?? '') })]),
-      el('button', { text: isFav ? '★' : '☆', 'aria-label': 'Favorita', on: { click: (e) => { favorite(s); e.target.textContent = state.favs.some((f) => f.id === s.id) ? '★' : '☆'; } } }),
-      el('button', { text: '▶', 'aria-label': 'Escuchar', on: { click: () => play(s, false) } }),
+      el('div', { class: 'meta' }, [el('div', { class: 'nm', text: s.name }), el('div', { class: 'tg', text: info || label(s.country) })]),
+      el('button', { text: isFav ? '★' : '☆', 'aria-label': 'Favorite', on: { click: (e) => { favorite(s); e.target.textContent = state.favs.some((f) => f.id === s.id) ? '★' : '☆'; } } }),
+      el('button', { text: '▶', 'aria-label': 'Play', on: { click: () => play(s, false) } }),
     ]);
   }
 
   function renderFavs() {
     const box = $('favs');
-    if (!state.favs.length) return box.replaceChildren(el('p', { class: 'msg', text: 'Aún no tienes favoritas. Toca ☆ en una emisora.' }));
-    box.replaceChildren(...state.favs.map((f) => stationRow({ ...f, city: '', tags: [], bitrate: 0 })));
+    if (!state.favs.length) return box.replaceChildren(el('p', { class: 'msg', text: 'No favorites yet. Tap ☆ on a station.' }));
+    box.replaceChildren(...state.favs.map((f) => stationRow({ ...f, city: '', language: '', tags: [], bitrate: 0 })));
   }
 
   function favorite(s) {
@@ -331,7 +396,7 @@ function toggleFavorite(favs, station) {
   function play(s, hidden) {
     state.current = { ...s, hidden };
     audio.src = s.stream;
-    audio.play().catch(() => { $('npInfo').textContent = 'Toca ▶ para empezar.'; });
+    audio.play().catch(() => { $('npInfo').textContent = 'Tap ▶ to start.'; });
     if (state.server) fetch(clickUrl(state.server, s.id)).catch(() => {}); // Radio Browser's play counter
     $('player').classList.remove('hide');
     syncPlayer();
@@ -341,8 +406,8 @@ function toggleFavorite(favs, station) {
   function syncPlayer() {
     const s = state.current;
     if (!s) return;
-    $('npName').textContent = s.hidden ? '¿? Emisora misteriosa' : s.name;
-    $('npInfo').textContent = s.hidden ? 'Escucha el acento…' : (countryByCode(s.country)?.name ?? '');
+    $('npName').textContent = s.hidden ? 'Mystery station' : s.name;
+    $('npInfo').textContent = s.hidden ? 'Listen closely…' : label(s.country);
     $('favBtn').classList.toggle('hide', !!s.hidden);
     $('favBtn').textContent = state.favs.some((f) => f.id === s.id) ? '★' : '☆';
   }
@@ -351,52 +416,46 @@ function toggleFavorite(favs, station) {
     if (audio.paused) audio.play().catch(() => {}); else audio.pause();
   });
   $('favBtn').addEventListener('click', () => state.current && favorite(state.current));
-  audio.addEventListener('playing', () => { $('playBtn').textContent = '❚❚'; $('eq').classList.remove('hide'); });
+  audio.addEventListener('playing', () => { $('playBtn').textContent = '❚❚'; $('eq').classList.remove('hide'); syncPlayer(); });
   audio.addEventListener('pause', () => { $('playBtn').textContent = '▶'; $('eq').classList.add('hide'); });
-  audio.addEventListener('waiting', () => { $('npInfo').textContent = 'Conectando…'; });
+  audio.addEventListener('waiting', () => { $('npInfo').textContent = 'Connecting…'; });
   audio.addEventListener('error', () => {
-    $('npInfo').textContent = 'Esta emisora no responde. Prueba otra.';
+    $('npInfo').textContent = "This station isn't responding. Try another.";
     $('eq').classList.add('hide');
   });
 
-  // ---------- accent roulette ----------
+  // ---------- roulette ----------
   function paintStreak() { $('streak').textContent = state.streak; $('best').textContent = state.best; }
 
   async function spin() {
     $('spin').disabled = true;
-    $('rqMsg').textContent = 'Girando…';
+    $('rqMsg').textContent = 'Spinning…';
     $('choices').replaceChildren();
     try {
-      // Load a handful of countries so the answer isn't always the one you browsed.
-      const picks = shuffleCodes().slice(0, 4);
+      if (!state.countries.length) await loadCountries();
+      const pool = roulettePool(state.countries);
+      const picks = shuffle(pool, state.rand).slice(0, CONFIG.rouletteCountriesPerSpin);
       const results = await Promise.allSettled(picks.map(loadCountry));
       const by = {};
       picks.forEach((c, i) => { if (results[i].status === 'fulfilled') by[c] = results[i].value; });
-      const round = makeRound(by, state.rand);
+      const round = makeRound(by, pool, state.rand);
       if (!round) throw new Error('empty');
       state.round = round;
-      $('rqTitle').textContent = '¿De dónde es esta radio?';
-      $('rqMsg').textContent = 'Escucha y elige un país.';
+      $('rqTitle').textContent = 'Where is this station?';
+      $('rqMsg').textContent = 'Listen, then pick a country.';
       $('choices').replaceChildren(...round.choices.map((code) => el('button', {
-        text: countryByCode(code).name, 'data-code': code, on: { click: (e) => guess(code, e.target) },
+        text: label(code), 'data-code': code, on: { click: (e) => guess(code, e.currentTarget) },
       })));
       $('reveal').disabled = false;
       play(round.station, true);
     } catch {
-      $('rqMsg').textContent = 'No se pudo cargar una emisora. Inténtalo otra vez.';
+      $('rqMsg').textContent = "Couldn't load a station. Try again.";
     } finally { $('spin').disabled = false; }
-  }
-
-  function shuffleCodes() {
-    const codes = CONFIG.countries.map((c) => c.code);
-    for (let i = codes.length - 1; i > 0; i--) { const j = Math.floor(state.rand() * (i + 1)); [codes[i], codes[j]] = [codes[j], codes[i]]; }
-    return codes;
   }
 
   function guess(code, btn) {
     const r = state.round;
     if (!r || r.done) return;
-    r.done = true;
     const res = scoreGuess(r, code, state.streak);
     state.streak = res.streak;
     state.best = Math.max(state.best, state.streak);
@@ -404,24 +463,27 @@ function toggleFavorite(favs, station) {
     paintStreak();
     btn.classList.add(res.correct ? 'right' : 'wrong');
     $('choices').querySelector(`[data-code="${r.answer}"]`)?.classList.add('right');
-    reveal(res.correct ? '¡Correcto!' : 'Casi…');
+    reveal(res.correct ? 'Correct!' : 'Not quite —');
   }
 
-  function reveal(head = 'Era…') {
+  function reveal(head = 'It was') {
     const r = state.round;
     if (!r) return;
     r.done = true;
-    $('rqTitle').textContent = `${head} ${countryByCode(r.answer).name}`;
+    $('rqTitle').textContent = `${head} ${label(r.answer)}`;
     $('rqMsg').textContent = r.station.name;
     $('reveal').disabled = true;
     if (state.current?.id === r.station.id) { state.current.hidden = false; syncPlayer(); }
   }
   $('spin').addEventListener('click', spin);
-  $('reveal').addEventListener('click', () => { if (state.round && !state.round.done) { state.streak = 0; store.set(K.streak, 0); paintStreak(); } reveal(); });
+  $('reveal').addEventListener('click', () => {
+    if (state.round && !state.round.done) { state.streak = 0; store.set(K.streak, 0); paintStreak(); }
+    reveal();
+  });
 
   // ---------- boot ----------
-  renderCountries();
   paintStreak();
+  loadCountries();
 })();
 
 </script>
