@@ -1,0 +1,11 @@
+{
+  "name": "world_radio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Live Spanish-language radio by country, with an accent roulette and beta captions.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/build.mjs && node --test"
+  }
+}
