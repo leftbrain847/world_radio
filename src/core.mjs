@@ -3,7 +3,7 @@
 export const CONFIG = {
   // Radio Browser mirrors, tried in order. Its docs ask apps to use a named server, not the bare domain.
   servers: ['https://de1.api.radio-browser.info', 'https://nl1.api.radio-browser.info', 'https://at1.api.radio-browser.info'],
-  stationsPerCountry: 60,
+  stationsPerCountry: 300,     // cap per country (the directory returns up to 2x this before the https/dedupe filter)
   minStationsPerCountry: 1,     // countries with fewer https stations are hidden from the picker
   rouletteMinStations: 20,      // roulette only draws from countries with at least this many stations
   rouletteCountriesPerSpin: 4,  // countries loaded per spin (answer is one of them)
