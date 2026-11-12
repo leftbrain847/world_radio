@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,7 +17,9 @@ nav button{flex:1}
 button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:9px 10px;cursor:pointer}
 button[aria-pressed=true],button.on{border-color:var(--acc);color:var(--acc)}
 button:disabled{opacity:.45}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+#search{width:100%;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;margin-bottom:6px}
+.hint{color:var(--dim);font-size:12px;margin:0 2px 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;max-height:220px;overflow:auto}
 .chips button{padding:6px 10px;font-size:13px}
 .list{display:flex;flex-direction:column;gap:6px}
 .st{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
@@ -29,7 +31,7 @@ button:disabled{opacity:.45}
 .msg{color:var(--dim);padding:14px 4px;text-align:center}
 .msg.err{color:var(--bad)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
-.big{font-size:28px;font-weight:700;text-align:center;margin:6px 0}
+.big{font-size:24px;font-weight:700;text-align:center;margin:6px 0}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .grid button.right{border-color:var(--ok);color:var(--ok)}
 .grid button.wrong{border-color:var(--bad);color:var(--bad)}
@@ -52,23 +54,25 @@ button:disabled{opacity:.45}
 </head>
 <body>
 <h1>world<b>_</b>radio</h1>
-<p class="sub">Radio en vivo en español — elige un país y escucha cómo se habla allí.</p>
+<p class="sub">Live radio from every country on Earth. Pick a place and listen.</p>
 <nav>
-  <button id="tabListen" aria-pressed="true">Escuchar</button>
-  <button id="tabRoulette" aria-pressed="false">Ruleta de acentos</button>
-  <button id="tabFavs" aria-pressed="false">Favoritas</button>
+  <button id="tabListen" aria-pressed="true">Listen</button>
+  <button id="tabRoulette" aria-pressed="false">Roulette</button>
+  <button id="tabFavs" aria-pressed="false">Favorites</button>
 </nav>
 <section id="viewListen">
+  <input id="search" type="search" placeholder="Search any country…" autocomplete="off" aria-label="Search countries">
+  <p class="hint" id="countryHint"></p>
   <div class="chips" id="countries"></div>
-  <div class="list" id="stations"><p class="msg">Elige un país.</p></div>
+  <div class="list" id="stations"><p class="msg">Pick a country.</p></div>
 </section>
 <section id="viewRoulette" class="hide">
   <div class="panel">
-    <div class="row"><span>Racha <b id="streak">0</b></span><span>Mejor <b id="best">0</b></span></div>
-    <div class="big" id="rqTitle">¿De dónde es esta radio?</div>
-    <p class="msg" id="rqMsg">Toca «Girar» para escuchar una emisora al azar.</p>
+    <div class="row"><span>Streak <b id="streak">0</b></span><span>Best <b id="best">0</b></span></div>
+    <div class="big" id="rqTitle">Where is this station?</div>
+    <p class="msg" id="rqMsg">Tap Spin to hear a random station from somewhere in the world.</p>
     <div class="grid" id="choices"></div>
-    <div class="grid actions"><button id="spin">Girar</button><button id="reveal" disabled>Revelar</button></div>
+    <div class="grid actions"><button id="spin">Spin</button><button id="reveal" disabled>Reveal</button></div>
   </div>
 </section>
 <section id="viewFavs" class="hide">

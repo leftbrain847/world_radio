@@ -18,7 +18,7 @@ test('built page is one self-contained document', () => {
 test('built script parses and core functions are present', () => {
   const script = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
   assert.doesNotThrow(() => new Function(script));
-  for (const fn of ['normalizeStations', 'makeRound', 'searchUrl']) assert.ok(script.includes(`function ${fn}`));
+  for (const fn of ['normalizeStations', 'normalizeCountries', 'makeRound', 'searchUrl']) assert.ok(script.includes(`function ${fn}`));
 });
 
 test('station text never goes in as HTML', () => {

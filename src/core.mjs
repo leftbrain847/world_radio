@@ -3,36 +3,24 @@
 export const CONFIG = {
   // Radio Browser mirrors, tried in order. Its docs ask apps to use a named server, not the bare domain.
   servers: ['https://de1.api.radio-browser.info', 'https://nl1.api.radio-browser.info', 'https://at1.api.radio-browser.info'],
-  language: 'spanish',
   stationsPerCountry: 60,
+  minStationsPerCountry: 1,     // countries with fewer https stations are hidden from the picker
+  rouletteMinStations: 20,      // roulette only draws from countries with at least this many stations
+  rouletteCountriesPerSpin: 4,  // countries loaded per spin (answer is one of them)
   rouletteTopN: 25,
   rouletteChoices: 4,
   requestTimeoutMs: 8000,
+  featured: ['US', 'GB', 'FR', 'DE', 'BR', 'JP', 'IN', 'NG', 'MX', 'AU'],
   storageKeys: { favorites: 'world_radio.favorites', streak: 'world_radio.streak', best: 'world_radio.best' },
-  countries: [
-    { code: 'MX', name: 'México', speech: 'es-MX' },
-    { code: 'PE', name: 'Perú', speech: 'es-PE' },
-    { code: 'EC', name: 'Ecuador', speech: 'es-EC' },
-    { code: 'CO', name: 'Colombia', speech: 'es-CO' },
-    { code: 'AR', name: 'Argentina', speech: 'es-AR' },
-    { code: 'CL', name: 'Chile', speech: 'es-CL' },
-    { code: 'ES', name: 'España', speech: 'es-ES' },
-    { code: 'CU', name: 'Cuba', speech: 'es-CU' },
-    { code: 'VE', name: 'Venezuela', speech: 'es-VE' },
-    { code: 'GT', name: 'Guatemala', speech: 'es-GT' },
-    { code: 'DO', name: 'Rep. Dominicana', speech: 'es-DO' },
-    { code: 'PR', name: 'Puerto Rico', speech: 'es-PR' },
-  ],
 };
 
-export function countryByCode(code, cfg = CONFIG) {
-  return cfg.countries.find((c) => c.code === code) ?? null;
+export function countriesUrl(server) {
+  return `${server}/json/countries?hidebroken=true&order=name`;
 }
 
 export function searchUrl(server, countryCode, cfg = CONFIG) {
   const q = new URLSearchParams({
     countrycode: countryCode,
-    language: cfg.language,
     hidebroken: 'true',
     is_https: 'true',
     order: 'votes',
@@ -56,7 +44,47 @@ export function isHttpsUrl(u) {
   }
 }
 
-// Raw API rows -> playable stations: https streams only, no duplicates, best-voted first.
+// Emoji flag from an ISO 3166-1 alpha-2 code (two regional-indicator letters).
+export function flag(code) {
+  if (!/^[A-Z]{2}$/.test(code ?? '')) return '';
+  return String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+}
+
+// Short English country name from the code (the directory's names are long official ones); falls back to its name.
+let regionNames = null;
+export function displayName(code, fallback) {
+  try {
+    regionNames ??= new Intl.DisplayNames(['en'], { type: 'region' });
+    const n = regionNames.of(code);
+    if (n && n !== code) return n;
+  } catch { /* old browser: use the directory's name */ }
+  return fallback || code;
+}
+
+// Raw /json/countries rows -> [{code, name, count}] with valid codes, merged, sorted by name.
+export function normalizeCountries(rows, cfg = CONFIG) {
+  const by = new Map();
+  for (const r of Array.isArray(rows) ? rows : []) {
+    const code = String(r?.iso_3166_1 ?? '').toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code)) continue;
+    const count = Number.isFinite(+r.stationcount) ? +r.stationcount : 0;
+    const prev = by.get(code);
+    by.set(code, { code, name: prev?.name || displayName(code, clean(r.name, 60)), count: (prev?.count ?? 0) + count });
+  }
+  return [...by.values()].filter((c) => c.count >= cfg.minStationsPerCountry).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function nameOf(code, countries) {
+  return countries.find((c) => c.code === code)?.name ?? code;
+}
+
+export function filterCountries(countries, query) {
+  const q = clean(query, 40).toLowerCase();
+  if (!q) return countries;
+  return countries.filter((c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase() === q);
+}
+
+// Raw station rows -> playable stations: https streams only, no duplicates, best-voted first.
 export function normalizeStations(rows, countryCode, cfg = CONFIG) {
   const seen = new Set();
   const out = [];
@@ -65,22 +93,20 @@ export function normalizeStations(rows, countryCode, cfg = CONFIG) {
     if (!isHttpsUrl(stream)) continue;
     const name = clean(r.name);
     if (!name || !r.stationuuid) continue;
-    const key = `${name.toLowerCase()}|${stream}`;
-    const nameKey = name.toLowerCase();
-    if (seen.has(key) || seen.has(nameKey)) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key) || seen.has(stream)) continue;
     seen.add(key);
-    seen.add(nameKey);
+    seen.add(stream);
     out.push({
       id: String(r.stationuuid),
       name,
       stream,
       country: countryCode,
       city: clean(r.state, 40),
+      language: clean(r.language, 40).split(',')[0].trim(),
       tags: clean(r.tags, 120).split(',').map((t) => t.trim()).filter(Boolean).slice(0, 3),
-      codec: clean(r.codec, 12),
       bitrate: Number.isFinite(+r.bitrate) ? +r.bitrate : 0,
       votes: Number.isFinite(+r.votes) ? +r.votes : 0,
-      homepage: isHttpsUrl(r.homepage) ? r.homepage : '',
     });
   }
   out.sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name));
@@ -98,7 +124,7 @@ export function rng(seed) {
   };
 }
 
-function shuffle(arr, rand) {
+export function shuffle(arr, rand) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
@@ -107,14 +133,19 @@ function shuffle(arr, rand) {
   return a;
 }
 
-// One accent-roulette round: a hidden station plus country choices that include the answer.
-export function makeRound(stationsByCountry, rand, cfg = CONFIG) {
+// Countries big enough to make a fair roulette draw.
+export function roulettePool(countries, cfg = CONFIG) {
+  return countries.filter((c) => c.count >= cfg.rouletteMinStations).map((c) => c.code);
+}
+
+// One roulette round: a hidden station plus country choices (from allCodes) that include the answer.
+export function makeRound(stationsByCountry, allCodes, rand, cfg = CONFIG) {
   const pool = Object.entries(stationsByCountry).filter(([, list]) => list.length);
   if (!pool.length) return null;
   const [answer, list] = pool[Math.floor(rand() * pool.length)];
   const top = list.slice(0, cfg.rouletteTopN);
   const station = top[Math.floor(rand() * top.length)];
-  const others = shuffle(cfg.countries.map((c) => c.code).filter((c) => c !== answer), rand).slice(0, cfg.rouletteChoices - 1);
+  const others = shuffle([...new Set(allCodes)].filter((c) => c !== answer), rand).slice(0, cfg.rouletteChoices - 1);
   return { station, answer, choices: shuffle([answer, ...others], rand) };
 }
 
