@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta name="sprint-public" content="yes">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>2026-11-11 - world_radio</title>
@@ -20,6 +21,8 @@ button:disabled{opacity:.45}
 #search{width:100%;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;margin-bottom:6px}
 .hint{color:var(--dim);font-size:12px;margin:0 2px 10px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;max-height:220px;overflow:auto}
+.chips.cont{max-height:none;flex-wrap:nowrap;overflow-x:auto;margin-bottom:6px}
+.chips.cont button{white-space:nowrap}
 .chips button{padding:6px 10px;font-size:13px}
 .list{display:flex;flex-direction:column;gap:6px}
 .st{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
@@ -62,6 +65,7 @@ button:disabled{opacity:.45}
 </nav>
 <section id="viewListen">
   <input id="search" type="search" placeholder="Search any country…" autocomplete="off" aria-label="Search countries">
+  <div class="chips cont" id="continents"></div>
   <p class="hint" id="countryHint"></p>
   <div class="chips" id="countries"></div>
   <div class="list" id="stations"><p class="msg">Pick a country.</p></div>
@@ -93,7 +97,7 @@ button:disabled{opacity:.45}
 const CONFIG = {
   // Radio Browser mirrors, tried in order. Its docs ask apps to use a named server, not the bare domain.
   servers: ['https://de1.api.radio-browser.info', 'https://nl1.api.radio-browser.info', 'https://at1.api.radio-browser.info'],
-  stationsPerCountry: 60,
+  stationsPerCountry: 300,     // cap per country (the directory returns up to 2x this before the https/dedupe filter)
   minStationsPerCountry: 1,     // countries with fewer https stations are hidden from the picker
   rouletteMinStations: 20,      // roulette only draws from countries with at least this many stations
   rouletteCountriesPerSpin: 4,  // countries loaded per spin (answer is one of them)
@@ -166,6 +170,31 @@ function normalizeCountries(rows, cfg = CONFIG) {
 
 function nameOf(code, countries) {
   return countries.find((c) => c.code === code)?.name ?? code;
+}
+
+// Continent of every ISO 3166-1 alpha-2 code (Central America and the Caribbean count as North America).
+const CONTINENTS = {
+  Africa: 'DZ AO BJ BW BF BI CV CM CF TD KM CG CD CI DJ EG GQ ER SZ ET GA GM GH GN GW KE LS LR LY MG MW ML MR MU YT MA MZ NA NE NG RE RW SH ST SN SC SL SO ZA SS SD TZ TG TN UG EH ZM ZW',
+  Asia: 'AF AM AZ BH BD BT BN KH CN CY GE HK IN ID IR IQ IL JP JO KZ KW KG LA LB MO MY MV MN MM NP KP OM PK PS PH QA SA SG KR LK SY TW TJ TH TL TR TM AE UZ VN YE',
+  Europe: 'AX AL AD AT BY BE BA BG HR CZ DK EE FO FI FR DE GI GR GG HU IS IE IM IT JE XK LV LI LT LU MT MD MC ME NL MK NO PL PT RO RU SM RS SK SI ES SJ SE CH UA GB VA',
+  'North America': 'AI AG AW BS BB BZ BM BQ VG CA KY CR CU CW DM DO SV GL GD GP GT HT HN JM MQ MX MS NI PA PR BL KN LC MF PM VC SX TT TC US VI UM',
+  'South America': 'AR BO BR CL CO EC FK GF GY PY PE SR UY VE',
+  Oceania: 'AS AU CK FJ PF GU KI MH FM NR NC NZ NU NF MP PW PG PN WS SB TK TO TV VU WF',
+};
+const CONTINENT_OF = Object.fromEntries(Object.entries(CONTINENTS).flatMap(([k, v]) => v.split(' ').map((c) => [c, k])));
+
+function continentOf(code) {
+  return CONTINENT_OF[code] ?? 'Other';
+}
+
+function countriesIn(countries, continent) {
+  return countries.filter((c) => continentOf(c.code) === continent);
+}
+
+// No query: featured countries first, then every other country by name.
+function orderCountries(countries, featured = CONFIG.featured) {
+  const first = featured.map((code) => countries.find((c) => c.code === code)).filter(Boolean);
+  return [...first, ...countries.filter((c) => !featured.includes(c.code))];
 }
 
 function filterCountries(countries, query) {
@@ -272,6 +301,7 @@ function toggleFavorite(favs, station) {
     countries: [],          // [{code, name, count}] from the directory
     country: null,
     query: '',
+    continent: 'Popular',   // 'Popular' = CONFIG.featured, else a key of CONTINENTS
     cache: {},              // countryCode -> stations
     server: null,           // the mirror that answered last
     current: null,          // station playing
@@ -332,15 +362,27 @@ function toggleFavorite(favs, station) {
     });
   }
 
+  function renderContinents() {
+    const names = ['Popular', ...Object.keys(CONTINENTS)];
+    if (state.countries.some((c) => continentOf(c.code) === 'Other')) names.push('Other');
+    $('continents').replaceChildren(...names.map((n) => el('button', {
+      text: n, 'aria-pressed': String(!state.query && state.continent === n),
+      on: { click: () => { state.continent = n; state.query = ''; $('search').value = ''; renderCountries(); } },
+    })));
+  }
+
   function renderCountries() {
     const box = $('countries');
     if (!state.countries.length) return;
+    renderContinents();
     const list = state.query
       ? filterCountries(state.countries, state.query)
-      : CONFIG.featured.map((code) => state.countries.find((c) => c.code === code)).filter(Boolean);
+      : state.continent === 'Popular'
+        ? orderCountries(state.countries).slice(0, CONFIG.featured.length)
+        : countriesIn(state.countries, state.continent);
     if (!list.length) return box.replaceChildren(el('p', { class: 'msg', text: 'No country matches that.' }));
     box.replaceChildren(...list.map(countryButton));
-    $('countryHint').textContent = state.query ? `${list.length} match` + (list.length === 1 ? '' : 'es') : `${state.countries.length} countries · type to find any`;
+    $('countryHint').textContent = state.query ? `${list.length} match` + (list.length === 1 ? '' : 'es') : `${state.continent} · ${list.length} of ${state.countries.length} countries · or search`;
   }
 
   async function loadCountries() {

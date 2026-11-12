@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { CONFIG, searchUrl, countriesUrl, clickUrl, normalizeStations, normalizeCountries, filterCountries, roulettePool, nameOf, flag, makeRound, scoreGuess, rng, toggleFavorite, isHttpsUrl } from '../src/core.mjs';
+import { CONFIG, searchUrl, countriesUrl, clickUrl, normalizeStations, normalizeCountries, filterCountries, orderCountries, CONTINENTS, continentOf, countriesIn, roulettePool, nameOf, flag, makeRound, scoreGuess, rng, toggleFavorite, isHttpsUrl } from '../src/core.mjs';
 import { FIXTURE, COUNTRIES } from './fixture.mjs';
 
 test('search asks for working https stations by votes, any language', () => {
@@ -84,4 +84,21 @@ test('favorites toggle and store only what playback needs', () => {
   const on = toggleFavorite([], a);
   assert.deepEqual(Object.keys(on[0]).sort(), ['country', 'id', 'name', 'stream']);
   assert.deepEqual(toggleFavorite(on, a), []);
+});
+
+test('all countries listed, featured first', () => {
+  const c = normalizeCountries(COUNTRIES);
+  const o = orderCountries(c, ['US', 'NG']);
+  assert.deepEqual(o.slice(0, 2).map((x) => x.code), ['US', 'NG']);
+  assert.equal(o.length, c.length);
+});
+
+test('continents: every code in exactly one, lookups work', () => {
+  const all = Object.values(CONTINENTS).flatMap((v) => v.split(' '));
+  assert.equal(new Set(all).size, all.length, 'no code in two continents');
+  assert.ok(all.every((c) => /^[A-Z]{2}$/.test(c)));
+  assert.equal(continentOf('NG'), 'Africa');
+  assert.equal(continentOf('PE'), 'South America');
+  assert.equal(continentOf('ZZ'), 'Other');
+  assert.deepEqual(countriesIn(normalizeCountries(COUNTRIES), 'Asia').map((x) => x.code), ['JP']);
 });

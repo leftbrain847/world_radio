@@ -21,6 +21,7 @@
     countries: [],          // [{code, name, count}] from the directory
     country: null,
     query: '',
+    continent: 'Popular',   // 'Popular' = CONFIG.featured, else a key of CONTINENTS
     cache: {},              // countryCode -> stations
     server: null,           // the mirror that answered last
     current: null,          // station playing
@@ -81,15 +82,27 @@
     });
   }
 
+  function renderContinents() {
+    const names = ['Popular', ...Object.keys(CONTINENTS)];
+    if (state.countries.some((c) => continentOf(c.code) === 'Other')) names.push('Other');
+    $('continents').replaceChildren(...names.map((n) => el('button', {
+      text: n, 'aria-pressed': String(!state.query && state.continent === n),
+      on: { click: () => { state.continent = n; state.query = ''; $('search').value = ''; renderCountries(); } },
+    })));
+  }
+
   function renderCountries() {
     const box = $('countries');
     if (!state.countries.length) return;
+    renderContinents();
     const list = state.query
       ? filterCountries(state.countries, state.query)
-      : CONFIG.featured.map((code) => state.countries.find((c) => c.code === code)).filter(Boolean);
+      : state.continent === 'Popular'
+        ? orderCountries(state.countries).slice(0, CONFIG.featured.length)
+        : countriesIn(state.countries, state.continent);
     if (!list.length) return box.replaceChildren(el('p', { class: 'msg', text: 'No country matches that.' }));
     box.replaceChildren(...list.map(countryButton));
-    $('countryHint').textContent = state.query ? `${list.length} match` + (list.length === 1 ? '' : 'es') : `${state.countries.length} countries · type to find any`;
+    $('countryHint').textContent = state.query ? `${list.length} match` + (list.length === 1 ? '' : 'es') : `${state.continent} · ${list.length} of ${state.countries.length} countries · or search`;
   }
 
   async function loadCountries() {
