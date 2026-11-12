@@ -16,7 +16,7 @@ npm test               # builds the page, then runs node --test (CI runs the sam
 ```
 
 ## Deployed
-- Live: https://leftbrain847.github.io/world_radio/ (GitHub Pages; once the Pages workflow is merged and Pages source is set to GitHub Actions). A Claude artifact can't play stations: its sandbox blocks outside requests and audio.
+- Live: https://leftbrain847.github.io/world_radio/ (GitHub Pages; every merge to main redeploys). A Claude artifact can't play stations: its sandbox blocks outside requests and audio.
 - Day snapshot: `2026-11-11 - world_radio` (frozen; never edited)
 
 ## Layout
