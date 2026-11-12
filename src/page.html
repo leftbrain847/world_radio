@@ -20,6 +20,8 @@ button:disabled{opacity:.45}
 #search{width:100%;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;margin-bottom:6px}
 .hint{color:var(--dim);font-size:12px;margin:0 2px 10px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;max-height:220px;overflow:auto}
+.chips.cont{max-height:none;flex-wrap:nowrap;overflow-x:auto;margin-bottom:6px}
+.chips.cont button{white-space:nowrap}
 .chips button{padding:6px 10px;font-size:13px}
 .list{display:flex;flex-direction:column;gap:6px}
 .st{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
@@ -62,6 +64,7 @@ button:disabled{opacity:.45}
 </nav>
 <section id="viewListen">
   <input id="search" type="search" placeholder="Search any country…" autocomplete="off" aria-label="Search countries">
+  <div class="chips cont" id="continents"></div>
   <p class="hint" id="countryHint"></p>
   <div class="chips" id="countries"></div>
   <div class="list" id="stations"><p class="msg">Pick a country.</p></div>
